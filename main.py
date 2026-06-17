@@ -2,8 +2,6 @@ from fastapi import FastAPI, File, UploadFile, Request
 from google import genai
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from transformers import AutoImageProcessor, AutoModelForImageClassification
-from PIL import Image
 import torch
 import requests
 import cv2
@@ -38,11 +36,6 @@ model = None
 def get_deepfake_model():
     global processor, model
     if processor is None or model is None:
-        print("Loading deepfake model...")
-        processor = AutoImageProcessor.from_pretrained("Wvolf/ViT_Deepfake_Detection")
-        model = AutoModelForImageClassification.from_pretrained("Wvolf/ViT_Deepfake_Detection")
-        model.eval()
-        print("Model loaded!")
     return processor, model
 
 def verdict_from_score(score, threshold=0.5):
@@ -205,22 +198,6 @@ def analyze_transaction_text(text):
         },
         "text_preview": normalized[:700],
     }
-
-def predict_frame(pil_image):
-    processor, model = get_deepfake_model()
-    inputs = processor(images=pil_image, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs)
-    probs = torch.softmax(outputs.logits, dim=1)[0]
-    labels = model.config.id2label
-    
-    scores = {labels[i]: probs[i].item() for i in range(len(probs))}
-    print(f"Frame scores: {scores}")
-    
-    fake_score = scores.get("Fake", scores.get("fake", scores.get("FAKE", 0)))
-    real_score = scores.get("Real", scores.get("real", scores.get("REAL", 0)))
-    return fake_score, real_score
-
 @app.get("/")
 def root():
     return {"message": "Deepfake Detector API running"}
